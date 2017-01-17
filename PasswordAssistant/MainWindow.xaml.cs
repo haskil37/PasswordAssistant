@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -36,6 +37,9 @@ namespace PasswordAssistant
         private System.Windows.Forms.NotifyIcon m_notifyIcon;
         private WindowState m_storedWindowState = WindowState.Normal;
         string password = "ghfdhgfdhgfdhgfd";
+        string path = System.Windows.Forms.Application.StartupPath + "\\data.pass";
+        List<PAStruct> data;
+
         private static readonly byte[] SALT = new byte[] { 0x26, 0xdc, 0xff, 0x00, 0xad, 0xed, 0x7a, 0xee, 0xc5, 0xfe, 0x07, 0xaf, 0x4d, 0x08, 0x22, 0x3c };
         public string EncryptString(string plainText)
         {
@@ -83,6 +87,14 @@ namespace PasswordAssistant
         public MainWindow()
         {
             InitializeComponent();
+
+            Microsoft.Win32.RegistryKey reg = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run\\");
+            if (reg.GetValue("PasswordAssistant") == null)
+                checkBox.IsChecked = false;
+            else
+                checkBox.IsChecked = true;
+            reg.Close();
+
             var primaryMonitorArea = SystemParameters.WorkArea;
             Left = primaryMonitorArea.Right - Width;
             Top = primaryMonitorArea.Bottom - Height;
@@ -98,6 +110,33 @@ namespace PasswordAssistant
                 Text = "Парольный помощник",
             };
             m_notifyIcon.Click += new EventHandler(m_notifyIcon_Click);
+            Read();
+        }
+        private void Window_Deactivated(object sender, EventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+        private void checkBox_Checked(object sender, RoutedEventArgs e)
+        {
+            const string name = "PasswordAssistant";
+            string ExePath = System.Windows.Forms.Application.ExecutablePath;
+            Microsoft.Win32.RegistryKey reg = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run\\");
+            try
+            {
+                reg.SetValue(name, ExePath);
+                reg.Close();
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
+        }
+        private void checkBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.RegistryKey reg = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run\\");
+            try
+            {
+                reg.DeleteValue("PasswordAssistant");
+                reg.Close();
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
         }
         void OnStateChanged(object sender, EventArgs args)
         {
@@ -111,8 +150,6 @@ namespace PasswordAssistant
             if (!IsVisible)
             {
                 Show();
-                this.Top = Top;
-                this.Left = Left;
                 WindowState = m_storedWindowState;
             }
             else
@@ -120,75 +157,118 @@ namespace PasswordAssistant
         }
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            e.Cancel = true;
-            WindowState = WindowState.Minimized;
-        }
-
-        private void exit_Click(object sender, RoutedEventArgs e)
-        {
             m_notifyIcon.Dispose();
             m_notifyIcon = null;
-            Application.Current.Shutdown();
         }
-        private void button1_Click(object sender, RoutedEventArgs e)
+        private void Read()
         {
-            List<PAStruct> db = new List<PAStruct>();
-            var value = new PAStruct();
-            value.program = EncryptString("steam");
-            value.login = EncryptString("haskil37");
-            value.password = EncryptString("Пароль");
-
-            db.Add(value);
-
-            string path = @"C:\data.pass";
-
+            data = new List<PAStruct>();
             try
             {
-                using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.OpenOrCreate)))
+                using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.OpenOrCreate)))
                 {
-                    foreach (PAStruct s in db)
-                    {
-                        writer.Write(s.program);
-                        writer.Write(s.login);
-                        writer.Write(s.password);
-                    }
-                }
-            }
-            catch 
-            {
-            }
-        }
-
-        private void button2_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                string path = @"C:\data.pass";
-
-                // создаем объект BinaryWriter
-                // создаем объект BinaryReader
-                using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open)))
-                {
-                    // пока не достигнут конец файла
-                    // считываем каждое значение из файла
                     while (reader.PeekChar() > -1)
                     {
-                        string program = reader.ReadString();
-                        string login = reader.ReadString();
-                        string password = reader.ReadString();
-                        program = DecryptString(program);
-                        login = DecryptString(login);
-                        password = DecryptString(password);
-
-                        string t = String.Format("Страна: {0}  столица: {1}  площадь {2}",
-                            program, login, password);
-                        MessageBox.Show(t);
+                        var entry = new PAStruct
+                        {
+                            program = DecryptString(reader.ReadString()),
+                            login = DecryptString(reader.ReadString()),
+                            password = DecryptString(reader.ReadString()),
+                        };
+                        data.Add(entry);
                     }
                 }
             }
-            catch 
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
+            foreach (var item in data)
             {
+                var textblock = new TextBlock();
+                var run = new Run();
+                run.Text = item.program;
+                textblock.Inlines.Add(run);
+                textblock.Cursor = Cursors.Hand;
+                textblock.Padding = new Thickness(10, 10, 10, 10);
+                textblock.MouseLeftButtonDown += listBox_MouseLeftButtonDown;
+                listBox.Items.Add(textblock);
             }
+        }
+        private void listBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var index = ((ListBox)sender).SelectedIndex;
+            var value = data[index];
+            programm.Content = value.program;
+            login.Text = value.login;
+            pass.Text = value.password;
+            ShowValues.IsOpen = true;
+        }
+        private void listBox_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            ShowValues.IsOpen = false;
+            if (sender is ListBox)
+            {
+                listBox.SelectionChanged -= listBox_SelectionChanged;
+                listBox.UnselectAll();
+                listBox.SelectionChanged += listBox_SelectionChanged;
+            }
+        }
+        private void add_Click(object sender, RoutedEventArgs e)
+        {
+            AddValues.IsOpen = true;
+            ShowValues.IsOpen = false;
+            programmAdd.Focus();
+        }
+        private void save_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(programmAdd.Text))
+                return;
+            if (string.IsNullOrEmpty(loginAdd.Text))
+                return;
+            if (string.IsNullOrEmpty(passAdd.Text))
+                return;
+
+            var value = new PAStruct();
+            value.program = EncryptString(programmAdd.Text);
+            value.login = EncryptString(loginAdd.Text);
+            value.password = EncryptString(passAdd.Text);
+            try
+            {
+                using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.Append)))
+                {
+                    writer.Write(value.program);
+                    writer.Write(value.login);
+                    writer.Write(value.password);
+                }
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
+            AddValues.IsOpen = false;
+            listBox.Items.Clear();
+            Read();
+        }
+        private void edit_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(login.Text))
+                return;
+            if (string.IsNullOrEmpty(pass.Text))
+                return;
+            //data.Where(u => u.program == programm.Content.ToString()).ToList().ForEach(u => u.login = login.Text);
+
+            try
+            {
+                using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.Open)))
+                {
+                    foreach (var item in data)
+                    {
+                        writer.Write(EncryptString(item.program));
+                        writer.Write(EncryptString(item.login));
+                        writer.Write(EncryptString(item.password));
+                    }
+                }
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
+            add.Focus();
+            ShowValues.IsOpen = false;
+            listBox.Items.Clear();
+            Read();
         }
     }
 }
