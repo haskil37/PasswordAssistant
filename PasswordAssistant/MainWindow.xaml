@@ -6,7 +6,7 @@
     Width="300" Height="400"
     Title="PasswordAssistant"
     StateChanged="OnStateChanged"
-    Closing="Window_Closing" MinWidth="300" MinHeight="400" Deactivated="Window_Deactivated">
+    Closing="Window_Closing" MinWidth="300" MinHeight="400" Deactivated="Window_Deactivated" Topmost="True">
     <Grid>
         <Button x:Name="add" Content="Добавить" Margin="10,0,10,36" VerticalAlignment="Bottom" Click="add_Click"/>
         <CheckBox x:Name="checkBox" Content="Запускать при старте Windows" Height="21" VerticalAlignment="Bottom" Margin="10,0,10,10" d:LayoutOverrides="Height" FontSize="14" Checked="checkBox_Checked" Unchecked="checkBox_Unchecked"/>

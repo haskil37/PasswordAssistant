@@ -39,7 +39,6 @@ namespace PasswordAssistant
         string password = "ghfdhgfdhgfdhgfd";
         string path = System.Windows.Forms.Application.StartupPath + "\\data.pass";
         List<PAStruct> data;
-
         private static readonly byte[] SALT = new byte[] { 0x26, 0xdc, 0xff, 0x00, 0xad, 0xed, 0x7a, 0xee, 0xc5, 0xfe, 0x07, 0xaf, 0x4d, 0x08, 0x22, 0x3c };
         public string EncryptString(string plainText)
         {
@@ -195,11 +194,14 @@ namespace PasswordAssistant
         private void listBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var index = ((ListBox)sender).SelectedIndex;
-            var value = data[index];
-            programm.Content = value.program;
-            login.Text = value.login;
-            pass.Text = value.password;
-            ShowValues.IsOpen = true;
+            if (index != -1)
+            {
+                var value = data[index];
+                programm.Content = value.program;
+                login.Text = value.login;
+                pass.Text = value.password;
+                ShowValues.IsOpen = true;
+            }
         }
         private void listBox_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -250,11 +252,16 @@ namespace PasswordAssistant
                 return;
             if (string.IsNullOrEmpty(pass.Text))
                 return;
-            //data.Where(u => u.program == programm.Content.ToString()).ToList().ForEach(u => u.login = login.Text);
-
+            var del = data.Where(u => u.program == programm.Content.ToString()).SingleOrDefault();
+            data.Remove(del);
+            var newProgramm = new PAStruct();
+            newProgramm.program = programm.Content.ToString();
+            newProgramm.login = login.Text;
+            newProgramm.password = pass.Text;
+            data.Add(newProgramm);
             try
             {
-                using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.Open)))
+                using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.Truncate)))
                 {
                     foreach (var item in data)
                     {
