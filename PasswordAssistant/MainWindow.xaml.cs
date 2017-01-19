@@ -36,7 +36,7 @@ namespace PasswordAssistant
     {
         private System.Windows.Forms.NotifyIcon m_notifyIcon;
         private WindowState m_storedWindowState = WindowState.Normal;
-        string password = "ghfdhgfdhgfdhgfd";
+        string password = "AnyPa$$w0rd";
         string path = System.Windows.Forms.Application.StartupPath + "\\data.pass";
         List<PAStruct> data;
         private static readonly byte[] SALT = new byte[] { 0x26, 0xdc, 0xff, 0x00, 0xad, 0xed, 0x7a, 0xee, 0xc5, 0xfe, 0x07, 0xaf, 0x4d, 0x08, 0x22, 0x3c };
@@ -184,6 +184,7 @@ namespace PasswordAssistant
                 var textblock = new TextBlock();
                 var run = new Run();
                 run.Text = item.program;
+                run.FontSize = 16;
                 textblock.Inlines.Add(run);
                 textblock.Cursor = Cursors.Hand;
                 textblock.Padding = new Thickness(10, 10, 10, 10);
@@ -259,6 +260,28 @@ namespace PasswordAssistant
             newProgramm.login = login.Text;
             newProgramm.password = pass.Text;
             data.Add(newProgramm);
+            try
+            {
+                using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.Truncate)))
+                {
+                    foreach (var item in data)
+                    {
+                        writer.Write(EncryptString(item.program));
+                        writer.Write(EncryptString(item.login));
+                        writer.Write(EncryptString(item.password));
+                    }
+                }
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
+            add.Focus();
+            ShowValues.IsOpen = false;
+            listBox.Items.Clear();
+            Read();
+        }
+        private void del_Click(object sender, RoutedEventArgs e)
+        {
+            var del = data.Where(u => u.program == programm.Content.ToString()).SingleOrDefault();
+            data.Remove(del);
             try
             {
                 using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.Truncate)))
