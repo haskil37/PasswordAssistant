@@ -109,6 +109,8 @@ namespace PasswordAssistant
                 Text = "Парольный помощник",
             };
             m_notifyIcon.Click += new EventHandler(m_notifyIcon_Click);
+            Hide();
+            WindowState = WindowState.Minimized;
             Read();
         }
         private void Window_Deactivated(object sender, EventArgs e)
@@ -143,6 +145,9 @@ namespace PasswordAssistant
                 Hide();
             else
                 m_storedWindowState = WindowState;
+            AddValues.IsOpen = false;
+            ShowValues.IsOpen = false;
+            listBox.SelectedIndex = -1;
         }
         void m_notifyIcon_Click(object sender, EventArgs e)
         {
@@ -194,13 +199,15 @@ namespace PasswordAssistant
         }
         private void listBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            passVisible.Visibility = Visibility.Hidden;
+            pass.Visibility = Visibility.Visible;
             var index = ((ListBox)sender).SelectedIndex;
             if (index != -1)
             {
                 var value = data[index];
                 programm.Content = value.program;
                 login.Text = value.login;
-                pass.Text = value.password;
+                pass.Password = value.password;
                 ShowValues.IsOpen = true;
             }
         }
@@ -251,14 +258,19 @@ namespace PasswordAssistant
         {
             if (string.IsNullOrEmpty(login.Text))
                 return;
-            if (string.IsNullOrEmpty(pass.Text))
+            if (string.IsNullOrEmpty(pass.Password))
                 return;
+
+            if (!string.IsNullOrEmpty(passVisible.Text))
+                if (passVisible.Text != pass.Password)
+                    pass.Password = passVisible.Text;
+
             var del = data.Where(u => u.program == programm.Content.ToString()).SingleOrDefault();
             data.Remove(del);
             var newProgramm = new PAStruct();
             newProgramm.program = programm.Content.ToString();
             newProgramm.login = login.Text;
-            newProgramm.password = pass.Text;
+            newProgramm.password = pass.Password;            
             data.Add(newProgramm);
             try
             {
@@ -299,6 +311,56 @@ namespace PasswordAssistant
             ShowValues.IsOpen = false;
             listBox.Items.Clear();
             Read();
+        }
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (pass.Focusable)
+                if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
+                    Clipboard.SetText(pass.Password);
+            if (login.Focusable)
+                if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
+                    Clipboard.SetText(login.Text);
+        }
+        new private void GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            if (sender is TextBox)
+            {
+                login.SelectAll();
+                Clipboard.SetText(login.Text);
+            }
+            if (sender is PasswordBox)
+            {
+                pass.SelectAll();
+                Clipboard.SetText(pass.Password);
+            }
+        }
+        new private void GotMouseCapture(object sender, MouseEventArgs e)
+        {
+            if (sender is TextBox)
+            {
+                login.SelectAll();
+                Clipboard.SetText(login.Text);
+            }
+            if (sender is PasswordBox)
+            {
+                pass.SelectAll();
+                Clipboard.SetText(pass.Password);
+            }
+        }
+        private void eye_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (passVisible.Visibility != Visibility.Hidden)
+            {
+                pass.Password = passVisible.Text;
+                passVisible.Visibility = Visibility.Hidden;
+                pass.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                passVisible.Text = pass.Password;
+                passVisible.Visibility = Visibility.Visible;
+                pass.Visibility = Visibility.Hidden;
+            }
         }
     }
 }
